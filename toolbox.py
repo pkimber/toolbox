@@ -33,8 +33,8 @@ def _list(repo):
             raise Exception("Cannot get collection status [{}].".format(result))
 
 
-def _repo(site_info, site_name):
-    result = '{}{}/backup'.format(site_info.rsync_ssh, site_name)
+def _repo(site_info, site_name, what):
+    result = '{}{}/{}'.format(site_info.rsync_ssh, site_name, what)
     click.secho(result, fg=CYAN)
     return result
 
@@ -55,12 +55,13 @@ def _server_name(site_name, live, pillar_folder):
 @click.option('-s', '--site-name', prompt=True)
 @click.option('--live/--test', default=False)
 @click.option('--op', type=click.Choice(['list', 'restore']), default='list')
-def cli(site_name, live, op):
+@click.option('--what', type=click.Choice(['backup', 'files']), prompt=True)
+def cli(site_name, live, op, what):
     _heading(site_name, op)
     pillar_folder = get_pillar_folder()
     server_name = _server_name(site_name, live, pillar_folder)
     site_info = SiteInfo(server_name, site_name)
-    repo = _repo(site_info, site_name)
+    repo = _repo(site_info, site_name, what)
     if op == 'list':
         _list(repo)
     click.echo()
