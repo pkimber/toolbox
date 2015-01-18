@@ -13,29 +13,17 @@ YELLOW = 'yellow'
 WHITE = 'white'
 
 
-@click.command()
-@click.option('-s', '--site-name', prompt=True)
-@click.option('--live/--test', default=False)
-@click.option('--op', type=click.Choice(['list', 'restore']), default='list')
-def cli(site_name, live, op):
+def _heading(site_name, op):
+    h = None
     click.clear()
-    click.secho('Restore: {}'.format(site_name), fg=WHITE, bold=True)
-    click.echo()
-    pillar_folder = get_pillar_folder()
-    click.secho('pillar: {}'.format(pillar_folder), fg=CYAN)
-
-    if live:
-        click.secho('is ALIVE!', fg=YELLOW, bold=True)
-        server_name = get_server_name_live(pillar_folder, site_name)
-    else:
-        click.secho('testing, testing...', fg=CYAN, bold=True)
-        server_name = get_server_name_test(pillar_folder, site_name)
-    click.secho('server_name: {}'.format(server_name), fg=CYAN)
-    site_info = SiteInfo(server_name, site_name)
-    repo = '{}{}/backup'.format(site_info.rsync_ssh, site_name)
-    click.secho(repo, fg=CYAN)
-
     if op == 'list':
+        h = 'List'
+    else:
+        raise NotImplementedError("Unknown 'op': [{}]".format(op))
+    click.secho('{}: {}'.format(h, site_name), fg=WHITE, bold=True)
+
+
+def _list(repo):
         result = subprocess.call([
             'duplicity',
             'collection-status',
@@ -44,6 +32,37 @@ def cli(site_name, live, op):
         if result:
             raise Exception("Cannot get collection status [{}].".format(result))
 
+
+def _repo(site_info, site_name):
+    result = '{}{}/backup'.format(site_info.rsync_ssh, site_name)
+    click.secho(result, fg=CYAN)
+    return result
+
+
+def _server_name(site_name, live, pillar_folder):
+    result = None
+    if live:
+        click.secho('is ALIVE!', fg=YELLOW, bold=True)
+        result = get_server_name_live(pillar_folder, site_name)
+    else:
+        click.secho('testing, testing...', fg=CYAN, bold=True)
+        result = get_server_name_test(pillar_folder, site_name)
+    click.secho('server_name: {}'.format(result), fg=CYAN)
+    return result
+
+
+@click.command()
+@click.option('-s', '--site-name', prompt=True)
+@click.option('--live/--test', default=False)
+@click.option('--op', type=click.Choice(['list', 'restore']), default='list')
+def cli(site_name, live, op):
+    _heading(site_name, op)
+    pillar_folder = get_pillar_folder()
+    server_name = _server_name(site_name, live, pillar_folder)
+    site_info = SiteInfo(server_name, site_name)
+    repo = _repo(site_info, site_name)
+    if op == 'list':
+        _list(repo)
     click.echo()
 
 
