@@ -18,25 +18,44 @@ def _heading(site_name, op):
     click.clear()
     if op == 'list':
         h = 'List'
+    elif op == 'restore':
+        h = 'Restore'
     else:
         raise NotImplementedError("Unknown 'op': [{}]".format(op))
     click.secho('{}: {}'.format(h, site_name), fg=WHITE, bold=True)
 
 
 def _list(repo):
-        result = subprocess.call([
-            'duplicity',
-            'collection-status',
-            repo
-        ])
-        if result:
-            raise Exception("Cannot get collection status [{}].".format(result))
+    result = subprocess.call([
+        'duplicity',
+        'collection-status',
+        repo
+    ])
+    if result:
+        raise Exception("Cannot get collection status [{}].".format(result))
 
 
 def _repo(site_info, site_name, what):
     result = '{}{}/{}'.format(site_info.rsync_ssh, site_name, what)
     click.secho(result, fg=CYAN)
     return result
+
+
+def _restore(repo, gpg_password):
+    restore_to = '/home/patrick/repo/temp/test/'
+    click.secho('restore to: {}'.format(restore_to), fg=YELLOW, bold=True)
+    result = subprocess.call([
+        'duplicity',
+        'restore',
+        repo,
+        restore_to,
+        ],
+        env={
+            'PASSPHRASE': gpg_password,
+        },
+    )
+    if result:
+        raise Exception("Cannot restore data [{}].".format(result))
 
 
 def _server_name(site_name, live, pillar_folder):
@@ -64,6 +83,8 @@ def cli(site_name, live, op, what):
     repo = _repo(site_info, site_name, what)
     if op == 'list':
         _list(repo)
+    elif op == 'restore':
+        _restore(repo, site_info.rsync_gpg_password)
     click.echo()
 
 
