@@ -12,6 +12,11 @@ Virtual Environment
   python get-pip.py
   pip install --editable .
 
+Not sure if the following commands will break the environment create above::
+
+  pip install -r requirements.txt
+  ln -s ../fabric/lib lib
+
 Usage
 =====
 
