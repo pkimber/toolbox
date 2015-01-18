@@ -1,4 +1,5 @@
 import click
+import subprocess
 
 from lib.dev.folder import get_pillar_folder
 from lib.server.name import (
@@ -15,7 +16,8 @@ WHITE = 'white'
 @click.command()
 @click.option('-s', '--site-name', prompt=True)
 @click.option('--live/--test', default=False)
-def cli(site_name, live):
+@click.option('--op', type=click.Choice(['list', 'restore']), default='list')
+def cli(site_name, live, op):
     click.clear()
     click.secho('Restore: {}'.format(site_name), fg=WHITE, bold=True)
     click.echo()
@@ -30,16 +32,18 @@ def cli(site_name, live):
         server_name = get_server_name_test(pillar_folder, site_name)
     click.secho('server_name: {}'.format(server_name), fg=CYAN)
     site_info = SiteInfo(server_name, site_name)
+    repo = '{}{}/backup'.format(site_info.rsync_ssh, site_name)
+    click.secho(repo, fg=CYAN)
 
+    if op == 'list':
+        result = subprocess.call([
+            'duplicity',
+            'collection-status',
+            repo
+        ])
+        if result:
+            raise Exception("Cannot get collection status [{}].".format(result))
 
-
-    click.secho(
-        (
-            'For more information, see: '
-            'http://click.pocoo.org/3/quickstart/#screencast-and-examples'
-        ),
-        fg=CYAN
-    )
     click.echo()
 
 
