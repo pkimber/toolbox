@@ -211,17 +211,9 @@ def production():
             else:
                 name = line[pos_dash + 3 : pos_equal]
                 tag = line[pos_equal + 2 :].strip()
-                result.append(App(name=name, branch=None, tag=tag))
-    # except FileNotFoundError:
-    #    folder_and_file = os.path.abspath(file_name)
-    #    if "/app/" in folder_and_file:
-    #        logger.info("Ignoring 'production.txt' as this is an app...")
-    #    else:
-    #        raise Exception(
-    #            "Cannot find 'production.txt'.  Looking in: {}".format(
-    #                folder_and_file
-    #            )
-    #        )
+                result.append(
+                    App(name=name.replace("-", "_"), branch=None, tag=tag)
+                )
     return result
 
 
