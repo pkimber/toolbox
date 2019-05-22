@@ -200,8 +200,6 @@ def production():
 
     """
     result = []
-    file_name = os.path.join("requirements", "production.txt")
-    # try:
     with open(os.path.join("requirements", "production.txt")) as f:
         for line in f:
             pos_dash = line.find("kb-")
