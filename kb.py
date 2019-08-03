@@ -37,6 +37,18 @@ def apps_equal(x_apps, y_apps, x_caption, y_caption):
         )
 
 
+def branch_is_equal(app, repo):
+    result = False
+    try:
+        if app.branch == repo.active_branch.name:
+            result = True
+    except TypeError as e:
+        raise Exception(
+            "app '{}', branch '{}': {}".format(app.name, app.branch, str(e))
+        )
+    return result
+
+
 def branches_equal(x_apps, y_apps, x_caption, y_caption):
     x_data = set(["{}@{}".format(x.name, x.branch) for x in x_apps])
     y_data = set(["{}@{}".format(y.name, y.branch) for y in y_apps])
@@ -119,7 +131,7 @@ def git(apps_with_branch, apps_with_tag, is_project):
     tags = {x.name: x.tag for x in apps_with_tag}
     for app in apps_with_branch:
         repo = git_repo(app)
-        if app.branch == repo.active_branch.name:
+        if branch_is_equal(app, repo):
             # only check tags if this is a project
             if is_project:
                 found = False
@@ -209,9 +221,7 @@ def production():
             else:
                 name = line[pos_dash + 3 : pos_equal]
                 tag = line[pos_equal + 2 :].strip()
-                result.append(
-                    App(name=name.replace("-", "_"), branch=None, tag=tag)
-                )
+                result.append(App(name=name, branch=None, tag=tag))
     return result
 
 
