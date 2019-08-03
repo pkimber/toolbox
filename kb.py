@@ -221,7 +221,9 @@ def production():
             else:
                 name = line[pos_dash + 3 : pos_equal]
                 tag = line[pos_equal + 2 :].strip()
-                result.append(App(name=name, branch=None, tag=tag))
+                result.append(
+                    App(name=name.replace("-", "_"), branch=None, tag=tag)
+                )
     return result
 
 
