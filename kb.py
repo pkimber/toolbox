@@ -20,6 +20,10 @@ class App:
     tag = attr.ib()
 
 
+def app_name(name):
+    return name.replace("-", "_")
+
+
 def apps_equal(x_apps, y_apps, x_caption, y_caption):
     result_a = set([x.name for x in x_apps]) - set([y.name for y in y_apps])
     result_b = set([y.name for y in y_apps]) - set([x.name for x in x_apps])
@@ -71,7 +75,7 @@ def branch():
     with open(os.path.join("requirements", "branch.txt")) as f:
         for line in f:
             name, branch = line.strip().split("|")
-            result.append(App(name=name, branch=branch, tag=None))
+            result.append(App(name=app_name(name), branch=branch, tag=None))
     return result
 
 
@@ -106,7 +110,7 @@ def ci():
                 pos_sla = p.path.rfind("/")
                 pos_dot = p.path.rfind(".")
                 name = p.path[pos_sla + 1 : pos_dot]
-                result.append(App(name=name, branch=branch, tag=None))
+                result.append(App(name=app_name(name), branch=branch, tag=None))
     return result
 
 
@@ -199,7 +203,7 @@ def local(is_project):
                 pass
             else:
                 name = line[pos + len(token) :].strip()
-                result.append(App(name=name, branch=None, tag=None))
+                result.append(App(name=app_name(name), branch=None, tag=None))
     return result
 
 
@@ -221,9 +225,7 @@ def production():
             else:
                 name = line[pos_dash + 3 : pos_equal]
                 tag = line[pos_equal + 2 :].strip()
-                result.append(
-                    App(name=name.replace("-", "_"), branch=None, tag=tag)
-                )
+                result.append(App(name=app_name(name), branch=None, tag=tag))
     return result
 
 
