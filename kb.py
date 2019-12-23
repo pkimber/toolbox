@@ -24,6 +24,10 @@ def app_name(name):
     return name.replace("-", "_")
 
 
+def app_to_folder(name):
+    return name.replace("_", "-")
+
+
 def apps_equal(x_apps, y_apps, x_caption, y_caption):
     result_a = set([x.name for x in x_apps]) - set([y.name for y in y_apps])
     result_b = set([y.name for y in y_apps]) - set([x.name for x in x_apps])
@@ -155,7 +159,9 @@ def git(apps_with_branch, apps_with_tag, is_project):
                 if not found:
                     raise Exception(
                         "Cannot find tag '{}' on the '{}' branch of "
-                        "'{}'".format(tag_to_find, app.branch, app.name)
+                        "'{}'".format(
+                            tag_to_find, app.branch, app_to_folder(app.name)
+                        )
                     )
         else:
             raise Exception(
@@ -171,7 +177,7 @@ def git_repo(app):
             "..",
             "..",
             "app",
-            app.name,
+            app_to_folder(app.name),
         )
     )
     if os.path.exists(folder):
