@@ -161,6 +161,7 @@ def git(apps_with_branch, apps_with_tag, is_project, pull):
             if is_project:
                 first = None
                 found = False
+                outstanding = []
                 tag_to_find = tags[app.name]
                 if pull:
                     print("pulling from {}".format(app.name))
@@ -194,9 +195,22 @@ def git(apps_with_branch, apps_with_tag, is_project, pull):
                                         "been released. You are using version "
                                         "{}.".format(first, app.name, semver)
                                     )
+                                if outstanding:
+                                    print(
+                                        "* Warning: there are {} changes on {} "
+                                        "which have not been released.".format(
+                                            len(outstanding), app.name
+                                        )
+                                    )
+                                    for count, x in enumerate(outstanding, 1):
+                                        print("  {}. {}".format(count, x))
+
                                 break
                             if not first:
                                 first = semver
+                    outstanding.append(
+                        "{} ({})".format(commit.message.strip(), commit.author)
+                    )
                 if not found:
                     raise Exception(
                         "Cannot find tag '{}' on the '{}' branch of "
