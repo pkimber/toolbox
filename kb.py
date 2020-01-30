@@ -1,4 +1,5 @@
 # -*- encoding: utf-8 -*-
+import argparse
 import attr
 import logging
 import os
@@ -150,7 +151,7 @@ def get_is_project():
     return is_project
 
 
-def git(apps_with_branch, apps_with_tag, is_project):
+def git(apps_with_branch, apps_with_tag, is_project, pull):
     """Check each app is on the expected branch."""
     tags = {x.name: x.semantic_version for x in apps_with_tag}
     for app in apps_with_branch:
@@ -161,6 +162,12 @@ def git(apps_with_branch, apps_with_tag, is_project):
                 first = None
                 found = False
                 tag_to_find = tags[app.name]
+                if pull:
+                    print("pulling from {}".format(app.name))
+                    fetch_info = repo.remotes.origin.pull()
+                    for x in fetch_info:
+                        if x.note:
+                            print("  {}".format(x.note))
                 # PJK 06/05/2019, For some reason tags are not appearing.
                 # We should check the fabric scripts to find out why.
                 # for tag in repo.tags:
@@ -298,6 +305,15 @@ def tag_to_semver(tag):
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Check the requirements for your project or app"
+    )
+    parser.add_argument(
+        "--pull", action="store_true", help="pull the latest app code from git"
+    )
+    args = parser.parse_args()
+    if args.pull:
+        print("  pulling the latest app code from git...")
     is_project = get_is_project()
     ci_apps = ci()
     branch_apps = branch()
@@ -312,7 +328,7 @@ if __name__ == "__main__":
     if is_project:
         apps_equal(ci_apps, production_apps, "ci.txt", "production.txt")
     branches_equal(ci_apps, branch_apps, "ci.txt", "branch.txt")
-    git(ci_apps, production_apps, is_project)
+    git(ci_apps, production_apps, is_project, args.pull)
     if not is_project:
         logger.info(
             "Note: This is an 'app', so we are not checking 'production.txt'"
