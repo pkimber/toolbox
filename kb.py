@@ -2,6 +2,7 @@
 import attr
 import logging
 import os
+import semantic_version
 
 from git import Repo
 from urllib.parse import urlparse
@@ -18,6 +19,7 @@ class App:
     name = attr.ib()
     branch = attr.ib()
     tag = attr.ib()
+    semantic_version = attr.ib()
 
 
 def app_name(name):
@@ -79,7 +81,14 @@ def branch():
     with open(os.path.join("requirements", "branch.txt")) as f:
         for line in f:
             name, branch = line.strip().split("|")
-            result.append(App(name=app_name(name), branch=branch, tag=None))
+            result.append(
+                App(
+                    name=app_name(name),
+                    branch=branch,
+                    tag=None,
+                    semantic_version=None,
+                )
+            )
     return result
 
 
@@ -114,7 +123,14 @@ def ci():
                 pos_sla = p.path.rfind("/")
                 pos_dot = p.path.rfind(".")
                 name = p.path[pos_sla + 1 : pos_dot]
-                result.append(App(name=app_name(name), branch=branch, tag=None))
+                result.append(
+                    App(
+                        name=app_name(name),
+                        branch=branch,
+                        tag=None,
+                        semantic_version=None,
+                    )
+                )
     return result
 
 
@@ -136,12 +152,13 @@ def get_is_project():
 
 def git(apps_with_branch, apps_with_tag, is_project):
     """Check each app is on the expected branch."""
-    tags = {x.name: x.tag for x in apps_with_tag}
+    tags = {x.name: x.semantic_version for x in apps_with_tag}
     for app in apps_with_branch:
         repo = git_repo(app)
         if branch_is_equal(app, repo):
             # only check tags if this is a project
             if is_project:
+                first = None
                 found = False
                 tag_to_find = tags[app.name]
                 # PJK 06/05/2019, For some reason tags are not appearing.
@@ -153,9 +170,26 @@ def git(apps_with_branch, apps_with_tag, is_project):
                 # check commit messages to try and find the version number
                 commits = list(repo.iter_commits(app.branch, max_count=30))
                 for commit in commits:
-                    if commit.message == "version {}".format(tag_to_find):
-                        found = True
-                        break
+                    if commit.message.startswith("version "):
+                        pos = commit.message.find(" ")
+                        if pos == -1:
+                            raise Exception(
+                                "The commit message has a space, but we "
+                                "can't find it: {}".format(commit.message)
+                            )
+                        else:
+                            semver = tag_to_semver(commit.message[pos + 1 :])
+                            if semver == tag_to_find:
+                                found = True
+                                if first and first > semver:
+                                    print(
+                                        "* Warning: version {} of '{}' has "
+                                        "been released. You are using version "
+                                        "{}.".format(first, app.name, semver)
+                                    )
+                                break
+                            if not first:
+                                first = semver
                 if not found:
                     raise Exception(
                         "Cannot find tag '{}' on the '{}' branch of "
@@ -209,7 +243,14 @@ def local(is_project):
                 pass
             else:
                 name = line[pos + len(token) :].strip()
-                result.append(App(name=app_name(name), branch=None, tag=None))
+                result.append(
+                    App(
+                        name=app_name(name),
+                        branch=None,
+                        tag=None,
+                        semantic_version=None,
+                    )
+                )
     return result
 
 
@@ -231,8 +272,29 @@ def production():
             else:
                 name = line[pos_dash + 3 : pos_equal]
                 tag = line[pos_equal + 2 :].strip()
-                result.append(App(name=app_name(name), branch=None, tag=tag))
+                result.append(
+                    App(
+                        name=app_name(name),
+                        branch=None,
+                        tag=tag,
+                        semantic_version=tag_to_semver(tag),
+                    )
+                )
     return result
+
+
+def tag_to_semver(tag):
+    """Convert a KB version number e.g. '0.2.05' to a semantic version.
+
+    .. note: The KB version numbers are invalid
+             e.g. the number should not contain leading zeros
+             - so ``0.2.05`` should be ``0.2.5``.
+
+    """
+    major, minor, patch = tag.split(".")
+    return semantic_version.Version(
+        major=int(major), minor=int(minor), patch=int(patch)
+    )
 
 
 if __name__ == "__main__":
