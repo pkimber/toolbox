@@ -203,8 +203,10 @@ def git(apps_with_branch, apps_with_tag, is_project, pull):
                                         )
                                     )
                                     for count, x in enumerate(outstanding, 1):
-                                        print("  {}. {}".format(count, x))
-
+                                        first_line = x.split("\n")[0].strip()
+                                        print(
+                                            "  {}. {}".format(count, first_line)
+                                        )
                                 break
                             if not first:
                                 first = semver
