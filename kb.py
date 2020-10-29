@@ -48,11 +48,24 @@ def apps_equal(x_apps, y_apps, x_caption, y_caption):
         )
 
 
-def branch_is_equal(app, repo):
+def branch_is_equal(app, repo, checkout):
     result = False
     try:
         if app.branch == repo.active_branch.name:
             result = True
+        elif checkout:
+            logger.info(
+                "'{}' checkout '{}'".format(app.name, app.branch)
+            )
+            if repo.is_dirty():
+                raise Exception(
+                    "'{}', branch {} has changes ('is_dirty')".format(
+                        app.name, repo.active_branch.name
+                    )
+                )
+            else:
+                repo.git.checkout(app.branch)
+            result = app.branch == repo.active_branch.name
     except TypeError as e:
         raise Exception(
             "app '{}', branch '{}': {}".format(app.name, app.branch, str(e))
@@ -151,12 +164,12 @@ def get_is_project():
     return is_project
 
 
-def git(apps_with_branch, apps_with_tag, is_project, pull):
+def git(apps_with_branch, apps_with_tag, is_project, checkout, pull):
     """Check each app is on the expected branch."""
     tags = {x.name: x.semantic_version for x in apps_with_tag}
     for app in apps_with_branch:
         repo = git_repo(app)
-        if branch_is_equal(app, repo):
+        if branch_is_equal(app, repo, checkout):
             # only check tags if this is a project
             if is_project:
                 first = None
@@ -325,6 +338,11 @@ if __name__ == "__main__":
         description="Check the requirements for your project or app"
     )
     parser.add_argument(
+        "--checkout",
+        action="store_true",
+        help="pull the latest app code from git",
+    )
+    parser.add_argument(
         "--pull", action="store_true", help="pull the latest app code from git"
     )
     args = parser.parse_args()
@@ -344,7 +362,7 @@ if __name__ == "__main__":
     if is_project:
         apps_equal(ci_apps, production_apps, "ci.txt", "production.txt")
     branches_equal(ci_apps, branch_apps, "ci.txt", "branch.txt")
-    git(ci_apps, production_apps, is_project, args.pull)
+    git(ci_apps, production_apps, is_project, args.checkout, args.pull)
     if not is_project:
         logger.info(
             "Note: This is an 'app', so we are not checking 'production.txt'"
