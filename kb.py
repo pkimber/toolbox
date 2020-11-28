@@ -13,6 +13,7 @@ logging.basicConfig(
     level=logging.INFO, format="%(asctime)s: %(levelname)s: %(message)s"
 )
 logger = logging.getLogger(__name__)
+GIT_COMMIT_COUNT = 30
 
 
 @attr.s
@@ -54,9 +55,7 @@ def branch_is_equal(app, repo, checkout):
         if app.branch == repo.active_branch.name:
             result = True
         elif checkout:
-            logger.info(
-                "'{}' checkout '{}'".format(app.name, app.branch)
-            )
+            logger.info("'{}' checkout '{}'".format(app.name, app.branch))
             if repo.is_dirty():
                 raise Exception(
                     "'{}', branch {} has changes ('is_dirty')".format(
@@ -189,7 +188,9 @@ def git(apps_with_branch, apps_with_tag, is_project, checkout, pull):
                 #        found = True
                 #        break
                 # check commit messages to try and find the version number
-                commits = list(repo.iter_commits(app.branch, max_count=30))
+                commits = list(
+                    repo.iter_commits(app.branch, max_count=GIT_COMMIT_COUNT)
+                )
                 for commit in commits:
                     if commit.message.startswith("version "):
                         pos = commit.message.find(" ")
