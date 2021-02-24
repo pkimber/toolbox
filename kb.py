@@ -66,7 +66,7 @@ class Release:
         if is_project:
             rprint("[yellow]check requirements...")
             file_name = os.path.join(
-                os.getcwd(), "requirements-{}.txt".format(prefix)
+                os.getcwd(), "requirements-{}.txt".format(self.prefix)
             )
             if os.path.exists(file_name):
                 with open(file_name) as f:
@@ -442,7 +442,11 @@ setup(
                     text=True,
                 )
                 if result.returncode == 0:
-                    rprint("[green]sucess...")
+                    rprint(
+                        "[green]'setup.py', 'upload' to {} - success...".format(
+                            self.pypi
+                        )
+                    )
                 else:
                     for x in result.stderr.split("\n"):
                         rprint("[red]{}".format(x))
@@ -610,8 +614,8 @@ def apps_equal(x_apps, y_apps, x_caption, y_caption):
     result_a = set([x.name for x in x_apps]) - set([y.name for y in y_apps])
     result_b = set([y.name for y in y_apps]) - set([x.name for x in x_apps])
     if result_a or result_b:
-        print([x.name for x in x_apps])
-        print([y.name for y in y_apps])
+        rprint("[red]{}".format([x.name for x in x_apps]))
+        rprint("[pink]{}".format([y.name for y in y_apps]))
         raise KbError(
             "'{}' has different apps to '{}': {}".format(
                 x_caption, y_caption, result_a or result_b
@@ -738,7 +742,7 @@ def ci():
 
 def get_is_project():
     is_app = is_project = False
-    current_folder = os.path.dirname(os.path.realpath(__file__))
+    current_folder = os.getcwd()
     if "/app/" in current_folder:
         is_app = True
     if "/project/" in current_folder:
