@@ -671,15 +671,17 @@ def branch():
     result = []
     with open(os.path.join("requirements", "branch.txt")) as f:
         for line in f:
-            name, branch = line.strip().split("|")
-            result.append(
-                App(
-                    name=app_name(name),
-                    branch=branch,
-                    tag=None,
-                    semantic_version=None,
+            # handle empty 'branch.txt' file
+            if line.strip():
+                name, branch = line.strip().split("|")
+                result.append(
+                    App(
+                        name=app_name(name),
+                        branch=branch,
+                        tag=None,
+                        semantic_version=None,
+                    )
                 )
-            )
     return result
 
 
