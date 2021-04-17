@@ -18,7 +18,7 @@ from walkdir import filtered_walk
 
 
 FILENAME_SETUP_YAML = "setup.yaml"
-GIT_COMMIT_COUNT = 30
+GIT_COMMIT_COUNT = 50
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s: %(levelname)s: %(message)s"
 )
