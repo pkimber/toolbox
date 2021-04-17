@@ -767,6 +767,7 @@ def git(apps_with_branch, apps_with_tag, is_project, checkout, pull):
             # only check tags if this is a project
             if is_project:
                 first = None
+                first_tag = None
                 found = False
                 outstanding = []
                 tag_to_find = tags[app.name]
@@ -796,6 +797,8 @@ def git(apps_with_branch, apps_with_tag, is_project, checkout, pull):
                             )
                         else:
                             semver = tag_to_semver(commit.message[pos + 1 :])
+                            if not first_tag:
+                                first_tag = semver
                             if semver == tag_to_find:
                                 found = True
                                 if first and first > semver:
@@ -825,8 +828,13 @@ def git(apps_with_branch, apps_with_tag, is_project, checkout, pull):
                 if not found:
                     raise Exception(
                         "Cannot find tag '{}' on the '{}' branch of "
-                        "'{}'".format(
-                            tag_to_find, app.branch, app_to_folder(app.name)
+                        "'{}'{}".format(
+                            tag_to_find,
+                            app.branch,
+                            app_to_folder(app.name),
+                            " (but found {})".format(first_tag)
+                            if first_tag
+                            else "",
                         )
                     )
         else:
