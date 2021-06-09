@@ -427,20 +427,17 @@ setup(
             #    self.pypi
             # )
             rprint("[blue]clean sdist upload...")
+            command = [
+                "python",
+                "setup.py",
+                "clean",
+                "sdist",
+                "upload",
+                "-r",
+                self.pypi,
+            ]
             try:
-                result = subprocess.run(
-                    [
-                        "python",
-                        "setup.py",
-                        "clean",
-                        "sdist",
-                        "upload",
-                        "-r",
-                        self.pypi,
-                    ],
-                    capture_output=True,
-                    text=True,
-                )
+                result = subprocess.run(command, capture_output=True, text=True)
                 if result.returncode == 0:
                     rprint(
                         "[green]'setup.py', 'upload' to {} - success...".format(
@@ -448,6 +445,7 @@ setup(
                         )
                     )
                 else:
+                    rprint("[red]{}".format(command))
                     for x in result.stderr.split("\n"):
                         rprint("[red]{}".format(x))
                     raise KbError("Failed to run the 'sdist upload' process")
@@ -686,7 +684,7 @@ def branch():
 
 
 def check_setup_yaml_exists():
-    """ The file, 'setup.yaml' looks like the 'sample_data' below: """
+    """The file, 'setup.yaml' looks like the 'sample_data' below:"""
     if not os.path.exists(FILENAME_SETUP_YAML):
         sample_data = {
             "description": "User Auth",
