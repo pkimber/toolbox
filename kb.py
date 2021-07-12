@@ -762,6 +762,12 @@ def git(apps_with_branch, apps_with_tag, is_project, checkout, pull):
     for app in apps_with_branch:
         repo = git_repo(app)
         if branch_is_equal(app, repo, checkout):
+            if pull:
+                print("pulling from {}".format(app.name))
+                fetch_info = repo.remotes.origin.pull()
+                for x in fetch_info:
+                    if x.note:
+                        print("  {}".format(x.note))
             # only check tags if this is a project
             if is_project:
                 first = None
@@ -769,12 +775,6 @@ def git(apps_with_branch, apps_with_tag, is_project, checkout, pull):
                 found = False
                 outstanding = []
                 tag_to_find = tags[app.name]
-                if pull:
-                    print("pulling from {}".format(app.name))
-                    fetch_info = repo.remotes.origin.pull()
-                    for x in fetch_info:
-                        if x.note:
-                            print("  {}".format(x.note))
                 # PJK 06/05/2019, For some reason tags are not appearing.
                 # We should check the fabric scripts to find out why.
                 # for tag in repo.tags:
