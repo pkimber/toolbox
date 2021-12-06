@@ -18,7 +18,7 @@ from walkdir import filtered_walk
 
 
 FILENAME_SETUP_YAML = "setup.yaml"
-GIT_COMMIT_COUNT = 50
+GIT_COMMIT_COUNT = 70
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s: %(levelname)s: %(message)s"
 )
@@ -795,31 +795,40 @@ def git(apps_with_branch, apps_with_tag, is_project, checkout, pull):
                             )
                         else:
                             semver = tag_to_semver(commit.message[pos + 1 :])
-                            if not first_tag:
-                                first_tag = semver
-                            if semver == tag_to_find:
-                                found = True
-                                if first and first > semver:
-                                    print(
-                                        "* Warning: version {} of '{}' has "
-                                        "been released. You are using version "
-                                        "{}.".format(first, app.name, semver)
-                                    )
-                                if outstanding:
-                                    print(
-                                        "* Warning: there are {} changes on {} "
-                                        "which have not been released.".format(
-                                            len(outstanding), app.name
-                                        )
-                                    )
-                                    for count, x in enumerate(outstanding, 1):
-                                        first_line = x.split("\n")[0].strip()
+                            if semver:
+                                if not first_tag:
+                                    first_tag = semver
+                                if semver == tag_to_find:
+                                    found = True
+                                    if first and first > semver:
                                         print(
-                                            "  {}. {}".format(count, first_line)
+                                            "* Warning: version {} of '{}' has "
+                                            "been released. You are using version "
+                                            "{}.".format(
+                                                first, app.name, semver
+                                            )
                                         )
-                                break
-                            if not first:
-                                first = semver
+                                    if outstanding:
+                                        print(
+                                            "* Warning: there are {} changes on {} "
+                                            "which have not been released.".format(
+                                                len(outstanding), app.name
+                                            )
+                                        )
+                                        for count, x in enumerate(
+                                            outstanding, 1
+                                        ):
+                                            first_line = x.split("\n")[
+                                                0
+                                            ].strip()
+                                            print(
+                                                "  {}. {}".format(
+                                                    count, first_line
+                                                )
+                                            )
+                                    break
+                                if not first:
+                                    first = semver
                     outstanding.append(
                         "{} ({})".format(commit.message.strip(), commit.author)
                     )
@@ -929,10 +938,16 @@ def tag_to_semver(tag):
              - so ``0.2.05`` should be ``0.2.5``.
 
     """
-    major, minor, patch = tag.split(".")
-    return semantic_version.Version(
-        major=int(major), minor=int(minor), patch=int(patch)
-    )
+    major = minor = patch = result = None
+    try:
+        major, minor, patch = tag.split(".")
+    except ValueError as e:
+        pass
+    if major or minor or patch:
+        result = semantic_version.Version(
+            major=int(major), minor=int(minor), patch=int(patch)
+        )
+    return result
 
 
 if __name__ == "__main__":
