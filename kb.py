@@ -246,10 +246,10 @@ class Release:
                 )
             )
         confirm = Prompt.ask(
-            "Please confirm you want to release version {0} (Y/N)".format(
+            "Please confirm you want to release version {0} (y/N)".format(
                 version
             ),
-            choices=["Y", "N"],
+            choices=["Y", "N", "y", "n"],
             default="N",
         )
         # confirm = ""
@@ -260,7 +260,7 @@ class Release:
         #         )
         #     )
         #     confirm = confirm.strip().upper()
-        if confirm == "Y":
+        if confirm.upper() == "Y":
             return version
         else:
             raise Exception("Please re-enter the version number")
