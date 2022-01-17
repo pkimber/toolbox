@@ -177,6 +177,7 @@ class Release:
             "front",
             "node_modules",
             "shiny",
+            "temp",
             "templates",
             "venv-*",
         ]
