@@ -8,6 +8,7 @@ import yaml
 
 from http import HTTPStatus
 from os import environ
+from rich import print as rprint
 from rich.console import Console
 from rich.pretty import pprint
 
@@ -18,20 +19,72 @@ console = Console()
 @attr.s
 class Droplet:
     droplet_id = attr.ib()
+    minion_id = attr.ib()
     memory = attr.ib()
     disk = attr.ib()
     price_monthly = attr.ib()
     tags = attr.ib()
+    domains = attr.ib()
 
 
-def check_digital_ocean():
+def display_domains(domains):
+    count = 0
+    for domain_name, config in domains.items():
+        count = count + 1
+        ssl = False
+        print()
+        if "ssl" in config:
+            ssl = True
+        console.print(
+            "{}. {}{}".format(
+                count, "https://" if ssl else "http://", domain_name
+            )
+        )
+        console.print("- {}".format(config["minion"]))
+        if "testing" in config:
+            console.print("- Test Site")
+        if "profile" in config:
+            profile = config["profile"]
+            if profile == "php":
+                profile = "{} (PHP)".format(config["php_profile"].capitalize())
+            else:
+                profile = "{}".format(profile.capitalize())
+            console.print("- {}".format(profile))
+        if "backup" in config:
+            console.print("- backup")
+        is_promtail = is_raygun = False
+        if "env" in config:
+            env = config["env"]
+            if "norecaptcha_site_key" in env:
+                console.print("- captcha (Google)")
+            if "raygun4py_api_key" in env:
+                is_raygun = True
+            if "sparkpost_api_key" in env:
+                console.print("- email (SparkPost)")
+        if "promtail" in config:
+            is_promtail = True
+        if is_promtail or is_raygun:
+            x = "{}".format("Promtail" if is_promtail else "RayGun")
+            console.print("- monitor ({})".format(x))
+        if ssl:
+            certificate = ""
+            if "letsencrypt" in config:
+                certificate = "LetsEncrypt"
+            console.print(
+                "- ssl{}".format(
+                    " ({})".format(certificate) if certificate else ""
+                )
+            )
+
+
+def get_digital_ocean():
     """
 
     How To Use Web APIs in Python 3
     https://www.digitalocean.com/community/tutorials/how-to-use-web-apis-in-python-#!/usr/bin/env python3
 
     """
-    result = {}
+    result = []
     api_token = environ["DIGITAL_OCEAN_TOKEN"]
     api_url_base = "https://api.digitalocean.com/v2/"
     headers = {
@@ -44,22 +97,27 @@ def check_digital_ocean():
         data = json.loads(response.content.decode("utf-8"))
         droplets = data["droplets"]
         for droplet in droplets:
-            name = droplet["name"]
+            minion_id = droplet["name"]
             size = droplet["size"]
             tags = droplet["tags"]
-            result[name] = Droplet(
-                droplet_id=droplet["id"],
-                memory=droplet["memory"],
-                disk=droplet["disk"],
-                price_monthly=size["price_monthly"],
-                tags=[x for x in tags],
+            result.append(
+                Droplet(
+                    droplet_id=droplet["id"],
+                    minion_id=minion_id,
+                    memory=droplet["memory"],
+                    disk=droplet["disk"],
+                    price_monthly=size["price_monthly"],
+                    tags=[x for x in tags],
+                    domains=[],
+                )
             )
     else:
         pprint(response, expand_all=True)
         raise Exception(
             "Error from the Digital Ocean API: {}".format(response.status_code)
         )
-    return dict(sorted(result.items()))
+    return result
+    # return dict(sorted(result.items()))
 
 
 def get_domains():
@@ -217,55 +275,35 @@ def merge_wildcard(host_name, wildcard):
 
 def main():
     domains = dict(sorted(get_domains().items()))
-    count = 0
+    # display_domains(domains)
+
+    # find the sites (domain names) for each minion (server)
+    minions = {}
     for domain_name, config in domains.items():
-        count = count + 1
-        ssl = False
-        print()
-        if "ssl" in config:
-            ssl = True
-        console.print(
-            "{}. {}{}".format(
-                count, "https://" if ssl else "http://", domain_name
-            )
-        )
-        console.print("- {}".format(config["minion"]))
-        if "testing" in config:
-            console.print("- Test Site")
-        if "profile" in config:
-            profile = config["profile"]
-            if profile == "php":
-                profile = "{} (PHP)".format(config["php_profile"].capitalize())
-            else:
-                profile = "{}".format(profile.capitalize())
-            console.print("- {}".format(profile))
-        if "backup" in config:
-            console.print("- backup")
-        is_promtail = is_raygun = False
-        if "env" in config:
-            env = config["env"]
-            if "norecaptcha_site_key" in env:
-                console.print("- captcha (Google)")
-            if "raygun4py_api_key" in env:
-                is_raygun = True
-            if "sparkpost_api_key" in env:
-                console.print("- email (SparkPost)")
-        if "promtail" in config:
-            is_promtail = True
-        if is_promtail or is_raygun:
-            x = "{}".format("Promtail" if is_promtail else "RayGun")
-            console.print("- monitor ({})".format(x))
-        if ssl:
-            certificate = ""
-            if "letsencrypt" in config:
-                certificate = "LetsEncrypt"
-            console.print(
-                "- ssl{}".format(
-                    " ({})".format(certificate) if certificate else ""
-                )
-            )
-    droplets = check_digital_ocean()
-    pprint(droplets, expand_all=True)
+        minion_id = config["minion"]
+        if not minion_id in minions:
+            minions[minion_id] = []
+        minions[minion_id].append(domain_name)
+    # pprint(minions, expand_all=True)
+
+    droplets = get_digital_ocean()
+
+    # add the sites (domain names) to the droplet
+    for droplet in droplets:
+        minion_id = droplet.minion_id
+        if minion_id in minions:
+            droplet.domains = minions.pop(minion_id)
+
+    # use the tag to link droplets to a contact
+    contacts = {}
+    for droplet in droplets:
+        for tag in droplet.tags:
+            if not tag in contacts:
+                contacts[tag] = []
+            contacts[tag].append(droplet)
+    pprint(contacts, expand_all=True)
+
+    # pprint(minions, expand_all=True)
 
 
 if __name__ == "__main__":
