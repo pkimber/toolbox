@@ -303,6 +303,8 @@ def main():
             contacts[tag].append(droplet)
     pprint(contacts, expand_all=True)
 
+    # display any minions which are not allocated to a droplet
+    # note: this is most likely because the customer is paying for the hosting!
     # pprint(minions, expand_all=True)
 
 
