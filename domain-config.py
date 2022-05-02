@@ -21,6 +21,7 @@ class Droplet:
     memory = attr.ib()
     disk = attr.ib()
     price_monthly = attr.ib()
+    tags = attr.ib()
 
 
 def check_digital_ocean():
@@ -45,11 +46,13 @@ def check_digital_ocean():
         for droplet in droplets:
             name = droplet["name"]
             size = droplet["size"]
+            tags = droplet["tags"]
             result[name] = Droplet(
                 droplet_id=droplet["id"],
                 memory=droplet["memory"],
                 disk=droplet["disk"],
                 price_monthly=size["price_monthly"],
+                tags=[x for x in tags],
             )
     else:
         pprint(response, expand_all=True)
