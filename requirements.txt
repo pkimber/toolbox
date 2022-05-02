@@ -1,8 +1,10 @@
 attrs
+black
 Click
 GitPython
 ipdb
 PyYAML
+requests
 rich
-semantic_version
 walkdir
+semantic_version

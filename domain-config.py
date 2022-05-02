@@ -1,13 +1,62 @@
 # -*- encoding: utf-8 -*-
+import attr
 import fnmatch
+import json
 import pathlib
+import requests
 import yaml
 
+from http import HTTPStatus
+from os import environ
 from rich.console import Console
 from rich.pretty import pprint
 
 
 console = Console()
+
+
+@attr.s
+class Droplet:
+    droplet_id = attr.ib()
+    memory = attr.ib()
+    disk = attr.ib()
+    price_monthly = attr.ib()
+
+
+def check_digital_ocean():
+    """
+
+    How To Use Web APIs in Python 3
+    https://www.digitalocean.com/community/tutorials/how-to-use-web-apis-in-python-#!/usr/bin/env python3
+
+    """
+    result = {}
+    api_token = environ["DIGITAL_OCEAN_TOKEN"]
+    api_url_base = "https://api.digitalocean.com/v2/"
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer {0}".format(api_token),
+    }
+    api_url = "{}droplets".format(api_url_base)
+    response = requests.get(api_url, headers=headers)
+    if response.status_code == HTTPStatus.OK:
+        data = json.loads(response.content.decode("utf-8"))
+        droplets = data["droplets"]
+        for droplet in droplets:
+            name = droplet["name"]
+            size = droplet["size"]
+            result[name] = Droplet(
+                droplet_id=droplet["id"],
+                memory=droplet["memory"],
+                disk=droplet["disk"],
+                price_monthly=size["price_monthly"],
+            )
+    else:
+        pprint(response, expand_all=True)
+        raise Exception(
+            "Error from the Digital Ocean API: {}".format(response.status_code)
+        )
+    return dict(sorted(result.items()))
 
 
 def get_domains():
@@ -212,6 +261,8 @@ def main():
                     " ({})".format(certificate) if certificate else ""
                 )
             )
+    droplets = check_digital_ocean()
+    pprint(droplets, expand_all=True)
 
 
 if __name__ == "__main__":

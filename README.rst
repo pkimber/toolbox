@@ -18,10 +18,15 @@ Three apps
 2. Domain Config
 ----------------
 
-Read the ``pillar`` and find the configuration for each domain name::
+Parse the ``pillar`` and find the configuration for each site / domain.
+
+.. tip:: Create a Digital Ocean *Personal access token* and add to your
+         ``.private`` file.
+
+::
 
   python3 -m venv venv-toolbox
-  source venv-toolbox/bin/activate.fish
+  source .env.fish
 
   python domain-config.py
 
