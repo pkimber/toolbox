@@ -120,6 +120,50 @@ def get_digital_ocean():
     # return dict(sorted(result.items()))
 
 
+def get_linode():
+    """
+
+    Create a Linode Using the Linode API
+    https://www.linode.com/docs/guides/getting-started-with-the-linode-api/
+
+    """
+    result = []
+    api_token = environ["LINODE_TOKEN"]
+    api_url_base = "https://api.linode.com/v4/linode/"
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer {0}".format(api_token),
+    }
+    api_url = "{}instances".format(api_url_base)
+    response = requests.get(api_url, headers=headers)
+    if response.status_code == HTTPStatus.OK:
+        data = json.loads(response.content.decode("utf-8"))
+        # pprint(data, expand_all=True)
+        droplets = data["data"]
+        for droplet in droplets:
+            minion_id = droplet["label"]
+            # size = droplet["size"]
+            # tags = droplet["tags"]
+            specs = droplet["specs"]
+            result.append(
+                Droplet(
+                    droplet_id=droplet["id"],
+                    minion_id=minion_id,
+                    memory=specs["memory"],
+                    disk=specs["disk"],
+                    price_monthly=None,  # size["price_monthly"],
+                    tags=[],
+                    domains=[],
+                )
+            )
+    else:
+        pprint(response, expand_all=True)
+        raise Exception(
+            "Error from the Linode API: {}".format(response.status_code)
+        )
+    return result
+
+
 def get_domains():
     result = {}
     pillar_folder = pathlib.Path.home().joinpath("Private", "deploy")
@@ -274,6 +318,7 @@ def merge_wildcard(host_name, wildcard):
 
 
 def main():
+
     domains = dict(sorted(get_domains().items()))
     # display_domains(domains)
 
@@ -286,7 +331,9 @@ def main():
         minions[minion_id].append(domain_name)
     # pprint(minions, expand_all=True)
 
-    droplets = get_digital_ocean()
+    droplets = []
+    droplets = droplets + get_digital_ocean()
+    droplets = droplets + get_linode()
 
     # add the sites (domain names) to the droplet
     for droplet in droplets:
@@ -305,7 +352,7 @@ def main():
 
     # display any minions which are not allocated to a droplet
     # note: this is most likely because the customer is paying for the hosting!
-    # pprint(minions, expand_all=True)
+    pprint(minions, expand_all=True)
 
 
 if __name__ == "__main__":
