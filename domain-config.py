@@ -165,6 +165,7 @@ def get_linode():
 
 
 def get_domains():
+    """Get the config for each site (domain name) from the Salt pillar."""
     result = {}
     pillar_folder = pathlib.Path.home().joinpath("Private", "deploy")
     for folder in pillar_folder.iterdir():
@@ -262,6 +263,23 @@ def get_domain_names(pillar_folder, wildcard):
     return result
 
 
+def json_dump_domains(data):
+    file_name = "domains.json"
+    with open(file_name, "w") as f:
+        json.dump(data, f, indent=4)
+    rprint("[yellow]'json_dump_domains' to '{}'...".format(file_name))
+
+
+def json_dump_droplets(droplets):
+    data = []
+    file_name = "droplets.json"
+    for droplet in droplets:
+        data.append(attr.asdict(droplet))
+    with open(file_name, "w") as f:
+        json.dump(data, f, indent=4)
+    rprint("[yellow]'json_dump_droplets' to '{}'...".format(file_name))
+
+
 def match_minion(minion_id, salt_top):
     """Copied from ``_match`` (see ``lib/pillarinfo.py`` in ``fabric``."""
     result = False
@@ -318,8 +336,8 @@ def merge_wildcard(host_name, wildcard):
 
 
 def main():
-
     domains = dict(sorted(get_domains().items()))
+    json_dump_domains(domains)
     # display_domains(domains)
 
     # find the sites (domain names) for each minion (server)
@@ -340,6 +358,7 @@ def main():
         minion_id = droplet.minion_id
         if minion_id in minions:
             droplet.domains = minions.pop(minion_id)
+    json_dump_droplets(droplets)
 
     # use the tag to link droplets to a contact
     contacts = {}
