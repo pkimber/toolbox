@@ -20,15 +20,30 @@ Three apps
 
 Parse the ``pillar`` and find the configuration for each site / domain.
 
-.. tip:: Create a Digital Ocean *Personal access token* and add to your
-         ``.private`` file.
+To calculate hosting costs:
+
+Create a Digital Ocean *Personal access token* and Linode token and add to
+your ``.private`` file e.g::
+
+  set -x DIGITAL_OCEAN_TOKEN "dop_v1_12345..."
+  set -x LINODE_TOKEN "cb12345..."
 
 ::
 
   python3 -m venv venv-toolbox
-  source .env.fish
+  pip install -r requirements.txt
 
+  source .env.fish
   python domain-config.py
+
+Copy ``domains.json`` and ``droplets.json`` to the current folder of your
+``kbsoftware_couk`` project.
+
+Run the management command to calculate hosting costs::
+
+  django-admin 5774-domain-config
+
+Open ``domain-config.csv`` in LibreOffice spreadsheets...
 
 3. Toolbox
 ----------
