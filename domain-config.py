@@ -14,12 +14,13 @@ from rich.pretty import pprint
 
 
 console = Console()
+DEFAULT_PILLAR = "kb"
 
 
 @attr.s
 class Droplet:
     droplet_id = attr.ib()
-    minion_id = attr.ib()
+    minion = attr.ib()
     memory = attr.ib()
     disk = attr.ib()
     price_monthly = attr.ib()
@@ -97,7 +98,7 @@ def get_digital_ocean():
         data = json.loads(response.content.decode("utf-8"))
         droplets = data["droplets"]
         for droplet in droplets:
-            minion_id = droplet["name"]
+            minion = droplet["name"]
             size = droplet["size"]
             # 06/05/2022, The project does not appear in the Droplet data, so
             # use the tags for now...
@@ -105,7 +106,7 @@ def get_digital_ocean():
             result.append(
                 Droplet(
                     droplet_id=droplet["id"],
-                    minion_id=minion_id,
+                    minion=minion,
                     memory=droplet["memory"],
                     disk=droplet["disk"],
                     price_monthly=size["price_monthly"],
@@ -147,7 +148,7 @@ class Linode:
             # pprint(data, expand_all=True)
             droplets = data["data"]
             for droplet in droplets:
-                minion_id = droplet["label"]
+                minion = droplet["label"]
                 linode_type = self.get_linode_type(droplet["type"])
                 # size = droplet["size"]
                 # tags = droplet["tags"]
@@ -155,7 +156,7 @@ class Linode:
                 result.append(
                     Droplet(
                         droplet_id=droplet["id"],
-                        minion_id=minion_id,
+                        minion=minion,
                         memory=specs["memory"],
                         disk=specs["disk"],
                         price_monthly=linode_type["price"]["monthly"],
@@ -200,8 +201,15 @@ def get_domains():
     pillar_folder = pathlib.Path.home().joinpath("Private", "deploy")
     for folder in pillar_folder.iterdir():
         if folder.is_dir() and folder.name.startswith("pillar-"):
+            pos = folder.name.find("-")
+            pillar = folder.name[pos + 1 :]
+            if not pillar:
+                raise Exception(
+                    "The pillar folder name ('{}') needs an identifier "
+                    "after the '-'".format(folder.name)
+                )
             wildcard = get_wildcard(folder)
-            result.update(get_domain_names(folder, wildcard))
+            result.update(get_domain_names(folder, wildcard, pillar))
     return result
 
 
@@ -247,7 +255,7 @@ def get_wildcard(pillar_folder):
     return result
 
 
-def get_domain_names(pillar_folder, wildcard):
+def get_domain_names(pillar_folder, wildcard, pillar):
     """Find the server configuration for each site / domain name.
 
     .. warning:: We add the configuration for the site / domain name after
@@ -288,6 +296,8 @@ def get_domain_names(pillar_folder, wildcard):
                         result[domain_name].update(server_config)
                         # add the server (host) name
                         result[domain_name].update({"minion": host_name})
+                        # add the pillar ID e.g. 'kb'
+                        result[domain_name].update({"pillar": pillar})
                         # finally - merge the domain config
                         result[domain_name].update(domain_config)
     return result
@@ -301,7 +311,14 @@ def json_dump_domains(domains):
     # if you want to see all the data, then uncomment just above...
     data = {}
     for domain_name, config in domains.items():
-        data.update({domain_name: {"minion_id": config["minion"]}})
+        data.update(
+            {
+                domain_name: {
+                    "minion": config["minion"],
+                    "pillar": config["pillar"],
+                }
+            }
+        )
     file_name = "domains.json"
     with open(file_name, "w") as f:
         json.dump(data, f, indent=4)
@@ -382,7 +399,7 @@ def main():
     # find the domain names for each minion (server)
     minions = {}
     for domain_name, config in domains.items():
-        minion_id = config["minion"]
+        minion_id = "{}@{}".format(config["pillar"], config["minion"])
         if not minion_id in minions:
             minions[minion_id] = []
         minions[minion_id].append(domain_name)
@@ -395,7 +412,7 @@ def main():
 
     # link the domain names to the droplets
     for droplet in droplets:
-        minion_id = droplet.minion_id
+        minion_id = "{}@{}".format(DEFAULT_PILLAR, droplet.minion)
         if minion_id in minions:
             droplet.domains = minions.pop(minion_id)
     json_dump_droplets(droplets)
