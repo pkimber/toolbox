@@ -99,6 +99,8 @@ def get_digital_ocean():
         for droplet in droplets:
             minion_id = droplet["name"]
             size = droplet["size"]
+            # 06/05/2022, The project does not appear in the Droplet data, so
+            # use the tags for now...
             tags = droplet["tags"]
             result.append(
                 Droplet(
@@ -120,48 +122,76 @@ def get_digital_ocean():
     # return dict(sorted(result.items()))
 
 
-def get_linode():
-    """
+class Linode:
+    def __init__(self):
+        self.api_token = environ["LINODE_TOKEN"]
+        self.api_url_base = "https://api.linode.com/v4/linode/"
+        self.headers = {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer {0}".format(self.api_token),
+        }
+        self.linode_types = {}
 
-    Create a Linode Using the Linode API
-    https://www.linode.com/docs/guides/getting-started-with-the-linode-api/
+    def get_linodes(self):
+        """
 
-    """
-    result = []
-    api_token = environ["LINODE_TOKEN"]
-    api_url_base = "https://api.linode.com/v4/linode/"
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": "Bearer {0}".format(api_token),
-    }
-    api_url = "{}instances".format(api_url_base)
-    response = requests.get(api_url, headers=headers)
-    if response.status_code == HTTPStatus.OK:
-        data = json.loads(response.content.decode("utf-8"))
-        # pprint(data, expand_all=True)
-        droplets = data["data"]
-        for droplet in droplets:
-            minion_id = droplet["label"]
-            # size = droplet["size"]
-            # tags = droplet["tags"]
-            specs = droplet["specs"]
-            result.append(
-                Droplet(
-                    droplet_id=droplet["id"],
-                    minion_id=minion_id,
-                    memory=specs["memory"],
-                    disk=specs["disk"],
-                    price_monthly=None,  # size["price_monthly"],
-                    tags=[],
-                    domains=[],
+        From, Create a Linode Using the Linode API
+        https://www.linode.com/docs/guides/getting-started-with-the-linode-api/
+
+        """
+        result = []
+        api_url = "{}instances".format(self.api_url_base)
+        response = requests.get(api_url, headers=self.headers)
+        if response.status_code == HTTPStatus.OK:
+            data = json.loads(response.content.decode("utf-8"))
+            # pprint(data, expand_all=True)
+            droplets = data["data"]
+            for droplet in droplets:
+                minion_id = droplet["label"]
+                linode_type = self.get_linode_type(droplet["type"])
+                # size = droplet["size"]
+                # tags = droplet["tags"]
+                specs = droplet["specs"]
+                result.append(
+                    Droplet(
+                        droplet_id=droplet["id"],
+                        minion_id=minion_id,
+                        memory=specs["memory"],
+                        disk=specs["disk"],
+                        price_monthly=linode_type["price"]["monthly"],
+                        tags=[],
+                        domains=[],
+                    )
                 )
+        else:
+            pprint(response, expand_all=True)
+            raise Exception(
+                "Error from the Linode API: {}".format(response.status_code)
             )
-    else:
-        pprint(response, expand_all=True)
-        raise Exception(
-            "Error from the Linode API: {}".format(response.status_code)
-        )
-    return result
+        return result
+
+    def get_linode_type(self, linode_type):
+        """
+
+        https://www.linode.com/docs/api/linode-types/#type-view
+
+        """
+        if linode_type in self.linode_types:
+            pass
+        else:
+            api_url = "{}types/{}".format(self.api_url_base, linode_type)
+            response = requests.get(api_url, headers=self.headers)
+            if response.status_code == HTTPStatus.OK:
+                data = json.loads(response.content.decode("utf-8"))
+                self.linode_types["linode_type"] = data
+            else:
+                pprint(response, expand_all=True)
+                raise Exception(
+                    "Error from the Linode types API: {}".format(
+                        response.status_code
+                    )
+                )
+        return self.linode_types["linode_type"]
 
 
 def get_domains():
@@ -263,11 +293,19 @@ def get_domain_names(pillar_folder, wildcard):
     return result
 
 
-def json_dump_domains(data):
+def json_dump_domains(domains):
+    # file_name = "temp.json"
+    # with open(file_name, "w") as f:
+    #     json.dump(domains, f, indent=4)
+    # write only required data to ``domains.json``
+    # if you want to see all the data, then uncomment just above...
+    data = {}
+    for domain_name, config in domains.items():
+        data.update({domain_name: {"minion_id": config["minion"]}})
     file_name = "domains.json"
     with open(file_name, "w") as f:
         json.dump(data, f, indent=4)
-    rprint("[yellow]'json_dump_domains' to '{}'...".format(file_name))
+    rprint("[yellow]1. 'json_dump_domains' to '{}'...".format(file_name))
 
 
 def json_dump_droplets(droplets):
@@ -277,7 +315,7 @@ def json_dump_droplets(droplets):
         data.append(attr.asdict(droplet))
     with open(file_name, "w") as f:
         json.dump(data, f, indent=4)
-    rprint("[yellow]'json_dump_droplets' to '{}'...".format(file_name))
+    rprint("[yellow]2. 'json_dump_droplets' to '{}'...".format(file_name))
 
 
 def match_minion(minion_id, salt_top):
@@ -336,11 +374,12 @@ def merge_wildcard(host_name, wildcard):
 
 
 def main():
+    # find all the domains in the salt pillar
     domains = dict(sorted(get_domains().items()))
     json_dump_domains(domains)
     # display_domains(domains)
 
-    # find the sites (domain names) for each minion (server)
+    # find the domain names for each minion (server)
     minions = {}
     for domain_name, config in domains.items():
         minion_id = config["minion"]
@@ -349,11 +388,12 @@ def main():
         minions[minion_id].append(domain_name)
     # pprint(minions, expand_all=True)
 
+    # get a list of cloud servers (droplets)
     droplets = []
     droplets = droplets + get_digital_ocean()
-    droplets = droplets + get_linode()
+    droplets = droplets + Linode().get_linodes()
 
-    # add the sites (domain names) to the droplet
+    # link the domain names to the droplets
     for droplet in droplets:
         minion_id = droplet.minion_id
         if minion_id in minions:
@@ -361,16 +401,21 @@ def main():
     json_dump_droplets(droplets)
 
     # use the tag to link droplets to a contact
-    contacts = {}
-    for droplet in droplets:
-        for tag in droplet.tags:
-            if not tag in contacts:
-                contacts[tag] = []
-            contacts[tag].append(droplet)
-    pprint(contacts, expand_all=True)
+    # contacts = {}
+    # for droplet in droplets:
+    #     for tag in droplet.tags:
+    #         if not tag in contacts:
+    #             contacts[tag] = []
+    #         contacts[tag].append(droplet)
+    # pprint(contacts, expand_all=True)
 
     # display any minions which are not allocated to a droplet
-    # note: this is most likely because the customer is paying for the hosting!
+    print()
+    rprint("[cyan]List of Salt minions NOT allocated to a Cloud Server...")
+    rprint(
+        "[cyan]Note: this is most likely because "
+        "the customer is paying for the hosting!"
+    )
     pprint(minions, expand_all=True)
 
 
