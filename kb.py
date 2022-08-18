@@ -720,6 +720,11 @@ def ci():
             else:
                 url = line[pos:]
                 p = urlparse(url)
+                # option to use the egg instead?
+                # egg = p.fragment
+                # pos_dash = line.find("kb-")
+                # name = line[pos_dash + 3 :]
+                # name = name.strip()
                 pos = p.path.find("@")
                 if pos == -1:
                     # no branch name e.g. '@3189-lms-models'
