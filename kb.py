@@ -286,6 +286,7 @@ class Release:
         content = content + [
             "include README",
             "include requirements/*.txt",
+            "include *.ttf",
             "include *.txt",
             "",
         ]
