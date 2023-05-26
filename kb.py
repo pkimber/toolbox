@@ -2,8 +2,10 @@
 import argparse
 import attr
 import glob
+import json
 import logging
 import os
+import pathlib
 import semantic_version
 import subprocess
 import sys
@@ -23,6 +25,43 @@ logging.basicConfig(
     level=logging.INFO, format="%(asctime)s: %(levelname)s: %(message)s"
 )
 logger = logging.getLogger(__name__)
+
+
+def _version_from_package_json():
+    with open("package.json", "r") as f:
+        data = json.load(f)
+    return data["version"]
+
+
+def create_dist_version_txt():
+    """Create 'dist/VERSION.txt' for 'ember-cli-new-version'."""
+    file_name = pathlib.Path("dist", "VERSION.txt")
+    rprint(f"[yellow]Generate '{file_name}' for 'ember-cli-new-version'")
+    version = _version_from_package_json()
+    rprint(f"version: {version}")
+    rprint(f"[white]creating  {file_name}")
+    with open(file_name, "w") as f:
+        f.write(version.strip())
+    return version
+
+
+def update_config_environment():
+    """Update 'config/environment.js' for 'ember-cli-new-version'."""
+    file_name = pathlib.Path("config", "environment.js")
+    version = _version_from_package_json()
+    rprint(
+        f"[yellow]Update '{file_name}' to version {version} "
+        "for 'ember-cli-new-version'"
+    )
+    with open(file_name, "r") as f:
+        lines = [line.rstrip() for line in f]
+    # with open(pathlib.Path(f"{file_name}.v2"), "w") as f:
+    with open(file_name, "w") as f:
+        for line in lines:
+            if "currentVersion" in line:
+                f.write(f"      currentVersion: '{version}',\n")
+            else:
+                f.write(f"{line}\n")
 
 
 @attr.s
@@ -976,7 +1015,23 @@ if __name__ == "__main__":
     parser.add_argument(
         "--pypi", help="the name of the pypi in your '~/.pypirc' file"
     )
+    parser.add_argument(
+        "--version-config",
+        action="store_true",
+        help="update 'config/environment.js' from 'package.json'",
+    )
+    parser.add_argument(
+        "--version-txt",
+        action="store_true",
+        help="generate 'dist/VERSION.txt' from 'package.json'",
+    )
     args = parser.parse_args()
+    if args.version_config:
+        update_config_environment()
+        exit("Complete...")
+    if args.version_txt:
+        create_dist_version_txt()
+        exit("Complete...")
     if args.pull:
         print("  pulling the latest app code from git...")
     if args.release:
