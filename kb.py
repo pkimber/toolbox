@@ -8,7 +8,6 @@ import os
 import pathlib
 import semantic_version
 import subprocess
-import sys
 import yaml
 
 from git import Repo
@@ -31,6 +30,13 @@ def _version_from_package_json():
     with open("package.json", "r") as f:
         data = json.load(f)
     return data["version"]
+
+
+def check_ember_branches(ember_apps, checkout, pull):
+    rprint(f"[yellow]checking ember branches...")
+    for counter, app in enumerate(ember_apps, start=1):
+        rprint(f"[white]  {counter}. {app.name}")
+    git(ember_apps, [], False, args.checkout, args.pull)
 
 
 def create_dist_version_txt():
@@ -706,21 +712,28 @@ def branches_equal(x_apps, y_apps, x_caption, y_caption):
         )
 
 
-def branch():
+def branch(requirements_file_name, allow_missing_file=None):
     result = []
-    with open(os.path.join("requirements", "branch.txt")) as f:
-        for line in f:
-            # handle empty 'branch.txt' file
-            if line.strip():
-                name, branch = line.strip().split("|")
-                result.append(
-                    App(
-                        name=app_name(name),
-                        branch=branch,
-                        tag=None,
-                        semantic_version=None,
+    try:
+        file_name = os.path.join("requirements", requirements_file_name)
+        with open(file_name) as f:
+            for line in f:
+                # handle empty 'branch.txt' file
+                if line.strip():
+                    name, branch = line.strip().split("|")
+                    result.append(
+                        App(
+                            name=app_name(name),
+                            branch=branch,
+                            tag=None,
+                            semantic_version=None,
+                        )
                     )
-                )
+    except FileNotFoundError:
+        if allow_missing_file:
+            rprint(f"[white]not checking '{file_name}'")
+        else:
+            raise KbError(f"requirements file '{file_name}' does not exist")
     return result
 
 
@@ -1041,7 +1054,7 @@ if __name__ == "__main__":
             exit("'release' requires the pypi name")
     is_project = get_is_project()
     ci_apps = ci()
-    branch_apps = branch()
+    branch_apps = branch("branch.txt")
     local_apps = local(is_project)
     if is_project:
         production_apps = production()
@@ -1054,6 +1067,10 @@ if __name__ == "__main__":
         apps_equal(ci_apps, production_apps, "ci.txt", "production.txt")
     branches_equal(ci_apps, branch_apps, "ci.txt", "branch.txt")
     git(ci_apps, production_apps, is_project, args.checkout, args.pull)
+    # ember
+    ember_apps = branch("ember.txt", allow_missing_file=True)
+    if ember_apps:
+        check_ember_branches(ember_apps, args.checkout, args.pull)
     if not is_project:
         logger.info(
             "Note: This is an 'app', so we are not checking 'production.txt'"
