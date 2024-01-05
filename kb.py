@@ -26,6 +26,26 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+def _file_exists_in_current_folder(file_name):
+    current_folder = pathlib.Path.cwd()
+    file_name = pathlib.Path(current_folder, file_name)
+    if file_name.is_file():
+        print()
+        rprint(f"Found {file_name}")
+        rprint("You may need to rebuild SCSS.")
+        rprint("Check README.rst for more information.")
+
+        confirm = Prompt.ask(
+            "Have you rebuit the SCSS file? (y/N)",
+            choices=["Y", "N", "y", "n"],
+            default="N",
+        )
+        if confirm.upper() == "Y":
+            pass
+        else:
+            raise Exception("You chose No. Nothing was released.")
+
+
 def _version_from_package_json():
     with open("package.json", "r") as f:
         data = json.load(f)
@@ -1077,4 +1097,5 @@ if __name__ == "__main__":
         )
     logger.info("All looking good :)")
     if args.release:
+        _file_exists_in_current_folder("package.json")
         Release(args.prefix, args.pypi).release()
