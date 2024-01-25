@@ -32,7 +32,7 @@ def _file_exists_in_current_folder(file_name):
     if file_name.is_file():
         print()
         rprint(f"Found {file_name}")
-        rprint("You may need to rebuild SCSS.")
+        rprint("You may need to rebuild SCSS / less.")
         rprint("Check README.rst for more information.")
 
         confirm = Prompt.ask(
@@ -1042,6 +1042,10 @@ if __name__ == "__main__":
         "--pull", action="store_true", help="pull the latest app code from git"
     )
     parser.add_argument(
+        "--scss-built", action="store_true",
+        help="scss has been built - don't prompt"
+    )
+    parser.add_argument(
         "--release", action="store_true", help="release the app (or project)"
     )
     parser.add_argument("--prefix", help="prefix for the company e.g. 'kb'")
@@ -1097,5 +1101,6 @@ if __name__ == "__main__":
         )
     logger.info("All looking good :)")
     if args.release:
-        _file_exists_in_current_folder("package.json")
+        if not args.scss_built:
+            _file_exists_in_current_folder("package.json")
         Release(args.prefix, args.pypi).release()
