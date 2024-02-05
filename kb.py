@@ -26,17 +26,23 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def _file_exists_in_current_folder(file_name):
+def _path_exists_in_cwd(file_name):
     current_folder = pathlib.Path.cwd()
     file_name = pathlib.Path(current_folder, file_name)
-    if file_name.is_file():
+
+    return file_name.is_file()
+
+
+def _package_json_exists():
+    file_name = "package.json"
+    if _path_exists_in_cwd(file_name):
         print()
         rprint(f"Found {file_name}")
-        rprint("You may need to rebuild SCSS / less.")
+        rprint("You may need to rebuild SCSS or less theme.")
         rprint("Check README.rst for more information.")
 
         confirm = Prompt.ask(
-            "Have you rebuit the SCSS file? (y/N)",
+            "Have you rebuit the project's CSS? (y/N)",
             choices=["Y", "N", "y", "n"],
             default="N",
         )
@@ -57,6 +63,17 @@ def check_ember_branches(ember_apps, checkout, pull):
     for counter, app in enumerate(ember_apps, start=1):
         rprint(f"[white]  {counter}. {app.name}")
     git(ember_apps, [], False, args.checkout, args.pull)
+
+
+def create_apps_txt(production_apps):
+    """Create 'requirements/apps.txt' for toml project."""
+    if is_toml_project():
+        file_name = pathlib.Path("requirements", "apps.txt")
+        app_path = os.path.join(pathlib.Path.home(), "dev/app/")
+        rprint(f"[yellow]Generate '{file_name}' for toml project")
+        with open(file_name, "w") as f:
+            for app in production_apps:
+                f.write("kb-{0} @ file://{1}{0}\n".format(app.name, app_path))
 
 
 def create_dist_version_txt():
@@ -980,6 +997,13 @@ def local(is_project):
     return result
 
 
+def is_toml_project():
+    return (
+        _path_exists_in_cwd("pyproject.toml") and
+        _path_exists_in_cwd("requirements/release.txt")
+    )
+
+
 def production():
     """Parse the production requirements.
 
@@ -989,7 +1013,12 @@ def production():
 
     """
     result = []
-    with open(os.path.join("requirements", "production.txt")) as f:
+
+    production_apps_file = "production.txt"
+    if is_toml_project():
+        production_apps_file = "release.txt"
+
+    with open(os.path.join("requirements", production_apps_file)) as f:
         for line in f:
             pos_dash = line.find("kb-")
             pos_equal = line.find("==")
@@ -1039,6 +1068,10 @@ if __name__ == "__main__":
         help="pull the latest app code from git",
     )
     parser.add_argument(
+        "--create-apps-txt", action="store_true",
+        help="create the requirements/apps.txt file for toml project"
+    )
+    parser.add_argument(
         "--pull", action="store_true", help="pull the latest app code from git"
     )
     parser.add_argument(
@@ -1079,16 +1112,25 @@ if __name__ == "__main__":
     is_project = get_is_project()
     ci_apps = ci()
     branch_apps = branch("branch.txt")
-    local_apps = local(is_project)
     if is_project:
         production_apps = production()
     else:
         production_apps = []
     # check
     apps_equal(ci_apps, branch_apps, "ci.txt", "branch.txt")
-    apps_equal(ci_apps, local_apps, "ci.txt", "local.txt")
+
+    if not is_toml_project():
+        # project not updated for pyproject.toml so check apps in local.txt
+        local_apps = local(is_project)
+        apps_equal(ci_apps, local_apps, "ci.txt", "local.txt")
     if is_project:
-        apps_equal(ci_apps, production_apps, "ci.txt", "production.txt")
+        if args.create_apps_txt:
+            create_apps_txt(production_apps)
+            exit("Complete...")
+        production_file = "production.txt"
+        if is_toml_project():
+            production_file = "release.txt"
+        apps_equal(ci_apps, production_apps, "ci.txt", production_file)
     branches_equal(ci_apps, branch_apps, "ci.txt", "branch.txt")
     git(ci_apps, production_apps, is_project, args.checkout, args.pull)
     # ember
@@ -1102,5 +1144,5 @@ if __name__ == "__main__":
     logger.info("All looking good :)")
     if args.release:
         if not args.scss_built:
-            _file_exists_in_current_folder("package.json")
+            _package_json_exists()
         Release(args.prefix, args.pypi).release()
